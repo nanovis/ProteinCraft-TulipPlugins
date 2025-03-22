@@ -156,7 +156,7 @@ class BinderTargetInteraction(tlp.Algorithm):
 # Register plugin
 tulipplugins.registerPluginOfGroup(
     "BinderTargetInteraction",
-    "ProteinCraft Binder Target Interaction",
+    "Binder Target Interaction",
     "Roden Luo",
     "2025-03-21",
     "Creates a subgraph for chain A-B interactions and sets bipartite layout",
