@@ -2,6 +2,30 @@ from tulip import tlp
 from tulipgui import tlpgui
 import tulipplugins
 
+def calculate_edge_lengths(graph, nodes, view_layout):
+    """
+    Calculate total edge length for a set of nodes.
+    
+    Args:
+        graph: The Tulip graph
+        nodes: List of nodes
+        view_layout: The layout property of the graph
+        
+    Returns:
+        Total edge length
+    """
+    total_length = 0.0
+    node_set = set(nodes)
+    
+    for n in nodes:
+        for e in graph.getInOutEdges(n):
+            if graph.source(e) in node_set and graph.target(e) in node_set:
+                src = view_layout[graph.source(e)]
+                tgt = view_layout[graph.target(e)]
+                total_length += (src - tgt).norm()
+    
+    return total_length
+
 class BinderIntraInteraction(tlp.Algorithm):
     """
     This plugin finds contiguous H/E components on chain A
@@ -179,6 +203,7 @@ class BinderIntraInteraction(tlp.Algorithm):
                 top_y   = 0.0
                 step_y  = -1.5
 
+                # First try with compB in original order
                 yA = top_y
                 for ndA in compA_nodes:
                     sub_layout[ndA] = tlp.Vec3f(left_x, yA, 0)
@@ -189,12 +214,36 @@ class BinderIntraInteraction(tlp.Algorithm):
                     sub_layout[ndB] = tlp.Vec3f(right_x, yB, 0)
                     yB += step_y
 
+                # Calculate edge lengths for original orientation
+                orig_length = calculate_edge_lengths(self.graph, compA_nodes + compB_nodes, sub_layout)
+
+                # Try reversed compB
+                yB = top_y
+                for ndB in reversed(compB_nodes):
+                    sub_layout[ndB] = tlp.Vec3f(right_x, yB, 0)
+                    yB += step_y
+
+                # Calculate edge lengths for reversed orientation
+                reversed_length = calculate_edge_lengths(self.graph, compA_nodes + compB_nodes, sub_layout)
+
+                # Choose orientation with shorter total edge length
+                if reversed_length < orig_length:
+                    # Keep the reversed orientation
+                    pass
+                else:
+                    # Revert back to original orientation
+                    yB = top_y
+                    for ndB in compB_nodes:
+                        sub_layout[ndB] = tlp.Vec3f(right_x, yB, 0)
+                        yB += step_y
+
             elif layout_orientation == "horizontal":
                 top_y     = 0.0
                 bottom_y  = -1.5
                 left_x    = 0.0
                 step_x    = 3.0
 
+                # First try with compB in original order
                 xA = left_x
                 for ndA in compA_nodes:
                     sub_layout[ndA] = tlp.Vec3f(xA, top_y, 0)
@@ -204,6 +253,29 @@ class BinderIntraInteraction(tlp.Algorithm):
                 for ndB in compB_nodes:
                     sub_layout[ndB] = tlp.Vec3f(xB, bottom_y, 0)
                     xB += step_x
+
+                # Calculate edge lengths for original orientation
+                orig_length = calculate_edge_lengths(self.graph, compA_nodes + compB_nodes, sub_layout)
+
+                # Try reversed compB
+                xB = left_x
+                for ndB in reversed(compB_nodes):
+                    sub_layout[ndB] = tlp.Vec3f(xB, bottom_y, 0)
+                    xB += step_x
+
+                # Calculate edge lengths for reversed orientation
+                reversed_length = calculate_edge_lengths(self.graph, compA_nodes + compB_nodes, sub_layout)
+
+                # Choose orientation with shorter total edge length
+                if reversed_length < orig_length:
+                    # Keep the reversed orientation
+                    pass
+                else:
+                    # Revert back to original orientation
+                    xB = left_x
+                    for ndB in compB_nodes:
+                        sub_layout[ndB] = tlp.Vec3f(xB, bottom_y, 0)
+                        xB += step_x
 
             else:
                 # fallback => vertical
