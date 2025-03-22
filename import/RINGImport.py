@@ -2,6 +2,38 @@ from tulip import tlp
 import tulipplugins
 import os
 
+# Map 3-letter to 1-letter codes
+AA_3TO1 = {
+    'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D',
+    'CYS': 'C', 'GLN': 'Q', 'GLU': 'E', 'GLY': 'G',
+    'HIS': 'H', 'ILE': 'I', 'LEU': 'L', 'LYS': 'K',
+    'MET': 'M', 'PHE': 'F', 'PRO': 'P', 'SER': 'S',
+    'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V'
+}
+
+def parse_ring_nodes(ring_nodes_file):
+    """
+    Parse the *_ringNodes file to find the maximum 'Position' for chain A.
+    Returns an integer, e.g. 63 if the highest residue on chain A is 63.
+    If no chain A found, returns 0 (no offset).
+    """
+    max_position_a = 0
+    with open(ring_nodes_file, 'r') as f:
+        # Skip header
+        next(f)
+        for line in f:
+            fields = line.strip().split('\t')
+            if len(fields) < 3:
+                continue
+            chain = fields[1]  # e.g. 'A' or 'B'
+            try:
+                position = int(fields[2])
+            except ValueError:
+                continue
+            if chain == 'A' and position > max_position_a:
+                max_position_a = position
+    return max_position_a
+
 class RINGImport(tlp.ImportModule):
     """
     This plugin imports a graph from two TSV (tab-delimited) files:
@@ -39,6 +71,9 @@ class RINGImport(tlp.ImportModule):
         # -- Retrieve plugin parameters (the files chosen by user) --
         nodeFile = self.dataSet['nodeFile']
         edgeFile = self.dataSet['edgeFile']
+
+        # Find the highest residue number on chain A (offset)
+        offset_a = parse_ring_nodes(nodeFile)
 
         # -- Create node properties for the data columns in the node file --
         # You can create or reuse property names as you see fit.
@@ -135,7 +170,6 @@ class RINGImport(tlp.ImportModule):
             n = self.graph.addNode()
 
             # Fill in the properties
-            viewLabel[n]      = nodeIdStr
             nodeIdProp[n]     = nodeIdStr
             chainProp[n]      = chain
             residueProp[n]    = residue
@@ -161,6 +195,17 @@ class RINGImport(tlp.ImportModule):
                 yCoord            = 0.0
                 zCoord            = 0.0
                 modelProp[n]      = 0
+
+            # Convert 3-letter code to 1-letter code
+            one_letter = AA_3TO1.get(residue, 'X')  # Use 'X' if residue not found in mapping
+
+            # Set viewLabel with position offset for chain B
+            if chain == 'B':
+                display_position = positionProp[n] + offset_a
+            else:
+                display_position = positionProp[n]
+            
+            viewLabel[n] = f"{display_position}:{one_letter}"
 
             # Set coordinates in 'viewLayout'
             viewLayout[n] = tlp.Vec3f(xCoord, yCoord, zCoord)
