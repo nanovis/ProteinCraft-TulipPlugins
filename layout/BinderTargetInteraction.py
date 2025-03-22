@@ -14,7 +14,7 @@ class BinderTargetInteraction(tlp.Algorithm):
         # Let the user decide whether to include VDW interactions or not
         self.addBooleanParameter("include_vdw",
                                  "Include VDW interactions in the subgraph?",
-                                 "False")
+                                 "True")
 
     def check(self):
         # Pre-check before run()
