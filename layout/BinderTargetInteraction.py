@@ -2,6 +2,8 @@ from tulip import tlp
 from tulipgui import tlpgui
 import tulipplugins
 
+from BinderIntraInteraction import calculate_edge_lengths
+
 class BinderTargetInteraction(tlp.Algorithm):
     """
     Creates a subgraph named 'BinderTargetInteraction' containing 
@@ -128,13 +130,32 @@ class BinderTargetInteraction(tlp.Algorithm):
 
         space_x = 1.5
 
-        # Place target nodes (chain B) horizontally at y=0
+        # First try with target nodes in original order
         for i, nodeB in enumerate(interacting_target_list):
             sub_view_layout[nodeB] = tlp.Vec3f(i * space_x, 0.0, 0.0)
 
         # Place binder nodes (chain A) horizontally at y=3
         for i, nodeA in enumerate(interacting_binder_list):
             sub_view_layout[nodeA] = tlp.Vec3f(i * space_x, 3.0, 0.0)
+
+        # Calculate edge lengths for original orientation
+        orig_length = calculate_edge_lengths(self.graph, interacting_binder_list + interacting_target_list, sub_view_layout)
+
+        # Try reversed target nodes
+        for i, nodeB in enumerate(reversed(interacting_target_list)):
+            sub_view_layout[nodeB] = tlp.Vec3f(i * space_x, 0.0, 0.0)
+
+        # Calculate edge lengths for reversed orientation
+        reversed_length = calculate_edge_lengths(self.graph, interacting_binder_list + interacting_target_list, sub_view_layout)
+
+        # Choose orientation with shorter total edge length
+        if reversed_length < orig_length:
+            # Keep the reversed orientation
+            pass
+        else:
+            # Revert back to original orientation
+            for i, nodeB in enumerate(interacting_target_list):
+                sub_view_layout[nodeB] = tlp.Vec3f(i * space_x, 0.0, 0.0)
 
         if self.pluginProgress:
             self.pluginProgress.setComment(
