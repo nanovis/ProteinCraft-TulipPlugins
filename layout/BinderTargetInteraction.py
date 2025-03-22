@@ -1,4 +1,5 @@
 from tulip import tlp
+from tulipgui import tlpgui
 import tulipplugins
 
 class BinderTargetInteraction(tlp.Algorithm):
@@ -139,6 +140,16 @@ class BinderTargetInteraction(tlp.Algorithm):
             self.pluginProgress.setComment(
                 "Created subgraph 'BinderTargetInteraction' with bipartite layout for chain A/B interactions."
             )
+
+        nlv_binder_target_sub = tlpgui.createNodeLinkDiagramView(binder_target_sub)
+
+        # set labels scaled to node sizes mode
+        renderingParameters = nlv_binder_target_sub.getRenderingParameters()
+        renderingParameters.setLabelScaled(True)
+        nlv_binder_target_sub.setRenderingParameters(renderingParameters)
+        
+        # center the layout
+        nlv_binder_target_sub.centerView()
 
         return True
 
