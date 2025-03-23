@@ -320,6 +320,9 @@ class BinderIntraInteraction(tlp.Algorithm):
                     for nd in all_nodes:
                         subg.addNode(nd)
 
+                    # Track nodes that have interactions
+                    nodes_with_interactions = set()
+
                     # gather edges (non-covalent, interesting)
                     for nd in all_nodes:
                         for e in self.graph.getInOutEdges(nd):
@@ -335,6 +338,25 @@ class BinderIntraInteraction(tlp.Algorithm):
                                 if ((nd in compA["nodes"] and nOther in compB["nodes"]) or 
                                     (nd in compB["nodes"] and nOther in compA["nodes"])):
                                     subg.addEdge(e)
+                                    nodes_with_interactions.add(nd)
+                                    nodes_with_interactions.add(nOther)
+
+                    # Set opacity for nodes without interactions using viewColor
+                    prop_viewParentColor = subg.getColorProperty("viewColor")
+                    prop_viewColor = subg.getLocalColorProperty("viewColor")
+                    
+                    # Copy parent colors to local property for edges
+                    for e in subg.getEdges():
+                        prop_viewColor[e] = prop_viewParentColor[e]
+                    
+                    # Set opacity for nodes without interactions
+                    for nd in all_nodes:
+                        if nd not in nodes_with_interactions:
+                            # Get current color and set alpha to 64 (1/4 opacity)
+                            current_color = prop_viewParentColor[nd]
+                            prop_viewColor[nd] = (current_color[0], current_color[1], current_color[2], 64)
+                        else:
+                            prop_viewColor[nd] = (current_color[0], current_color[1], current_color[2], 255)
 
                     # bipartite layout
                     layout_bipartite(compA["nodes"], compB["nodes"], sub_layout)
