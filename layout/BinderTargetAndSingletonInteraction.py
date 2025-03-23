@@ -1,4 +1,5 @@
 from tulip import tlp
+from tulipgui import tlpgui
 import tulipplugins
 
 ###############################################################################
@@ -266,10 +267,27 @@ class BinderTargetAndSingletonInteraction(tlp.Algorithm):
             if len(list(new_sub.getInOutEdges(n))) == 0:
                 new_sub.delNode(n)
 
+        # Create and configure the view for this subgraph
+        nlv_binder_target_and_singleton_interaction_sub = tlpgui.createNodeLinkDiagramView(new_sub)
+        # Set labels scaled to node sizes mode
+        renderingParameters = nlv_binder_target_and_singleton_interaction_sub.getRenderingParameters()
+        renderingParameters.setLabelScaled(True)
+        nlv_binder_target_and_singleton_interaction_sub.setRenderingParameters(renderingParameters)
+        # Center the layout
+        nlv_binder_target_and_singleton_interaction_sub.centerView()
+
+        # Apply Stress Minimization layout to improve the visualization
+        params = tlp.getDefaultPluginParameters('Stress Minimization (OGDF)', new_sub)
+        # Configure parameters for better layout
+        params['number of iterations'] = 200
+        params['edge costs'] = 2
+        # Apply the layout algorithm
+        new_sub.applyLayoutAlgorithm('Stress Minimization (OGDF)', params)
+
         # done
         if self.pluginProgress:
             self.pluginProgress.setComment(
-                f"Created/updated '{sub_name}' subgraph with inter-chain edges + leftover binder-binder edges."
+                f"Created/updated '{sub_name}' subgraph with inter-chain edges + singleton binder-binder edges."
             )
 
         return True
