@@ -40,7 +40,7 @@ class UMAPImport(tlp.Algorithm):
         self.addColorParameter(
             "Node Color",
             "Color for the nodes in the visualization",
-            "(0, 255, 95, 255)",  # Vivid red as default
+            "(255, 95, 95, 255)",  # Vivid red as default
             False,  # not mandatory
             True,   # input parameter
             False   # not output parameter
