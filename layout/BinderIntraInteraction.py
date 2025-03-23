@@ -329,8 +329,12 @@ class BinderIntraInteraction(tlp.Algorithm):
                             if is_covalent(itype):
                                 continue
                             nOther = self.graph.target(e) if self.graph.source(e) == nd else self.graph.source(e)
+                            # Only keep edges that connect between different components
                             if nOther in all_nodes:
-                                subg.addEdge(e)
+                                # Check if the edge connects between different components
+                                if ((nd in compA["nodes"] and nOther in compB["nodes"]) or 
+                                    (nd in compB["nodes"] and nOther in compA["nodes"])):
+                                    subg.addEdge(e)
 
                     # bipartite layout
                     layout_bipartite(compA["nodes"], compB["nodes"], sub_layout)
