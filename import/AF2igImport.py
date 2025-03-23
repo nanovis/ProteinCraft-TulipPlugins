@@ -147,11 +147,12 @@ class AF2igImport(tlp.Algorithm):
         return True
 
 # Register the plugin with Tulip
-tulipplugins.registerPlugin(
+tulipplugins.registerPluginOfGroup(
     "AF2igImport",                      # The class name (must match above)
     "AF2ig Import Algorithm",           # A short description for the plugin
-    "YourName",                         # Author
+    "Roden Luo",                         # Author
     "2025",                             # Date or year
     "",                                 # Citation or reference
-    "1.0"                               # Version
+    "1.0",                               # Version
+    "ProteinCraft"
 )
