@@ -34,7 +34,7 @@ def parse_ring_nodes(ring_nodes_file):
                 max_position_a = position
     return max_position_a
 
-class RINGImport(tlp.ImportModule):
+class RINGImport(tlp.Algorithm):
     """
     This plugin imports a graph from two TSV (tab-delimited) files:
       1) A node file, e.g. "xxx_ringNodes",
@@ -50,58 +50,74 @@ class RINGImport(tlp.ImportModule):
     """
 
     def __init__(self, context):
-        tlp.ImportModule.__init__(self, context)
+        tlp.Algorithm.__init__(self, context)
         # Add two file parameters for the user to choose in the plugin UI
-        self.addFileParameter('nodeFile', True, 'Tab-delimited file describing nodes')
-        self.addFileParameter('edgeFile', True, 'Tab-delimited file describing edges')
+        self.addFileParameter(
+            "Node File",
+            True,
+            "Tab-delimited file describing nodes",
+            "/home/luod/ProteinCraft/run/4_PD-L1/outs_AF2ig_RING/try1_9_dldesign_0_cycle1_af2pred.pdb_ringNodes"
+        )
+        self.addFileParameter(
+            "Edge File",
+            True,
+            "Tab-delimited file describing edges",
+            "/home/luod/ProteinCraft/run/4_PD-L1/outs_AF2ig_RING/try1_9_dldesign_0_cycle1_af2pred.pdb_ringEdges"
+        )
 
-    def fileExtensions(self):
+    def check(self):
         """
-        You can optionally declare recognized file extensions. 
-        Here we leave it broad, returning an empty list so that 
-        this plugin appears for all file types.
+        Verify that the algorithm can be run
         """
-        return []
+        return (True, "")
 
-    def importGraph(self):
+    def run(self):
         """
-        Main function that Tulip calls to import the graph.
+        Main function that creates and populates the graph from the input files.
         """
-
         # -- Retrieve plugin parameters (the files chosen by user) --
-        nodeFile = self.dataSet['nodeFile']
-        edgeFile = self.dataSet['edgeFile']
+        nodeFile = self.dataSet["Node File"]
+        edgeFile = self.dataSet["Edge File"]
+
+        if not nodeFile or not edgeFile:
+            self.pluginProgress.setError("Both node and edge files must be provided.")
+            return False
 
         # Find the highest residue number on chain A (offset)
         offset_a = parse_ring_nodes(nodeFile)
 
+        # Create a new graph
+        self.new_graph = tlp.newGraph()
+        nodeFileBaseName = os.path.basename(nodeFile)
+        fileBase = nodeFileBaseName.replace(".pdb_ringNodes","")
+        self.new_graph.setName(f"RING_{fileBase}")
+
         # -- Create node properties for the data columns in the node file --
-        # You can create or reuse property names as you see fit.
-        chainProp      = self.graph.getStringProperty("chain")
-        positionProp   = self.graph.getIntegerProperty("position")
-        residueProp    = self.graph.getStringProperty("residue")
-        typeProp       = self.graph.getStringProperty("resType")
-        dsspProp       = self.graph.getStringProperty("dssp")
-        degreeProp     = self.graph.getIntegerProperty("degree")
-        bfactorProp    = self.graph.getDoubleProperty("bfactor_CA")
-        pdbFileProp    = self.graph.getStringProperty("pdbFileName")
-        modelProp      = self.graph.getIntegerProperty("model")
-        nodeIdProp     = self.graph.getStringProperty("nodeId") 
-        xProp         = self.graph.getDoubleProperty("x")
-        yProp         = self.graph.getDoubleProperty("y")
-        zProp         = self.graph.getDoubleProperty("z")
+        chainProp      = self.new_graph.getStringProperty("chain")
+        positionProp   = self.new_graph.getIntegerProperty("position")
+        residueProp    = self.new_graph.getStringProperty("residue")
+        typeProp       = self.new_graph.getStringProperty("resType")
+        dsspProp       = self.new_graph.getStringProperty("dssp")
+        degreeProp     = self.new_graph.getIntegerProperty("degree")
+        bfactorProp    = self.new_graph.getDoubleProperty("bfactor_CA")
+        pdbFileProp    = self.new_graph.getStringProperty("pdbFileName")
+        modelProp      = self.new_graph.getIntegerProperty("model")
+        nodeIdProp     = self.new_graph.getStringProperty("nodeId") 
+        xProp         = self.new_graph.getDoubleProperty("x")
+        yProp         = self.new_graph.getDoubleProperty("y")
+        zProp         = self.new_graph.getDoubleProperty("z")
 
         # We'll store node coordinates in the standard 'viewLayout' property
-        viewLayout     = self.graph.getLayoutProperty("viewLayout")
+        viewLayout     = self.new_graph.getLayoutProperty("viewLayout")
 
         # Also store NodeId in the standard 'viewLabel' for convenience
-        viewLabel      = self.graph.getStringProperty("viewLabel")
+        viewLabel      = self.new_graph.getStringProperty("viewLabel")
 
         # Add viewShape property for node shapes
-        viewShape      = self.graph.getIntegerProperty("viewShape")
+        viewShape      = self.new_graph.getIntegerProperty("viewShape")
 
         # Add viewColor property for node colors
-        viewColor      = self.graph.getColorProperty("viewColor")
+        viewColor      = self.new_graph.getColorProperty("viewColor")
 
         # We'll store the NodeId -> Tulip node mapping here to help edge creation
         nodeMap = {}
@@ -167,7 +183,7 @@ class RINGImport(tlp.ImportModule):
             modelStr     = tokens[modelIdx]
 
             # Create a new Tulip node
-            n = self.graph.addNode()
+            n = self.new_graph.addNode()
 
             # Fill in the properties
             nodeIdProp[n]     = nodeIdStr
@@ -234,16 +250,16 @@ class RINGImport(tlp.ImportModule):
         # Then store other columns in edge properties.
 
         # Create edge properties
-        interactionProp = self.graph.getStringProperty("interaction")
-        distanceProp    = self.graph.getDoubleProperty("distance")
-        angleProp       = self.graph.getDoubleProperty("angle")
-        atom1Prop       = self.graph.getStringProperty("atom1")
-        atom2Prop       = self.graph.getStringProperty("atom2")
-        donorProp       = self.graph.getStringProperty("donor")
-        positiveProp    = self.graph.getStringProperty("positive")
-        cationProp      = self.graph.getStringProperty("cation")
-        orientationProp = self.graph.getStringProperty("orientation")
-        edgeModelProp   = self.graph.getIntegerProperty("edgeModel")
+        interactionProp = self.new_graph.getStringProperty("interaction")
+        distanceProp    = self.new_graph.getDoubleProperty("distance")
+        angleProp       = self.new_graph.getDoubleProperty("angle")
+        atom1Prop       = self.new_graph.getStringProperty("atom1")
+        atom2Prop       = self.new_graph.getStringProperty("atom2")
+        donorProp       = self.new_graph.getStringProperty("donor")
+        positiveProp    = self.new_graph.getStringProperty("positive")
+        cationProp      = self.new_graph.getStringProperty("cation")
+        orientationProp = self.new_graph.getStringProperty("orientation")
+        edgeModelProp   = self.new_graph.getIntegerProperty("edgeModel")
 
         # Create edges between consecutive residues on the same chain
         # First, organize nodes by chain and position
@@ -265,7 +281,7 @@ class RINGImport(tlp.ImportModule):
                 if pos2 == pos1 + 1:
                     node1 = positions[pos1]
                     node2 = positions[pos2]
-                    edge = self.graph.addEdge(node1, node2)
+                    edge = self.new_graph.addEdge(node1, node2)
                     interactionProp[edge] = "COV:PEP"
                     # Set edge color for COV:PEP (backbone)
                     viewColor[edge] = tlp.Color(20, 20, 20, 255)
@@ -328,7 +344,7 @@ class RINGImport(tlp.ImportModule):
             # Create the edge
             n1 = nodeMap[node1Str]
             n2 = nodeMap[node2Str]
-            e = self.graph.addEdge(n1, n2)
+            e = self.new_graph.addEdge(n1, n2)
             
             # Fill edge properties
             interactionProp[e] = interaction
@@ -364,10 +380,6 @@ class RINGImport(tlp.ImportModule):
                 edgeModelProp[e] = int(emodelStr) if emodelStr else 0
             except ValueError:
                 edgeModelProp[e] = 0
-
-        nodeFileBaseName = os.path.basename(nodeFile)
-        fileBase = nodeFileBaseName.replace(".pdb_ringNodes","")
-        self.graph.setName(f"RING_{fileBase}")
 
         # If we reach here, we successfully parsed both files and created a graph
         return True
