@@ -11,29 +11,6 @@ AA_3TO1 = {
     'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V'
 }
 
-def parse_ring_nodes(ring_nodes_file):
-    """
-    Parse the *_ringNodes file to find the maximum 'Position' for chain A.
-    Returns an integer, e.g. 63 if the highest residue on chain A is 63.
-    If no chain A found, returns 0 (no offset).
-    """
-    max_position_a = 0
-    with open(ring_nodes_file, 'r') as f:
-        # Skip header
-        next(f)
-        for line in f:
-            fields = line.strip().split('\t')
-            if len(fields) < 3:
-                continue
-            chain = fields[1]  # e.g. 'A' or 'B'
-            try:
-                position = int(fields[2])
-            except ValueError:
-                continue
-            if chain == 'A' and position > max_position_a:
-                max_position_a = position
-    return max_position_a
-
 def create_ring_graph(nodeFile, edgeFile):
     """
     Create a Tulip graph from RING node and edge files.
@@ -50,9 +27,6 @@ def create_ring_graph(nodeFile, edgeFile):
     """
     if not nodeFile or not edgeFile:
         raise ValueError("Both node and edge files must be provided.")
-
-    # Find the highest residue number on chain A (offset)
-    offset_a = parse_ring_nodes(nodeFile)
 
     # Create a new graph
     new_graph = tlp.newGraph()
@@ -174,13 +148,8 @@ def create_ring_graph(nodeFile, edgeFile):
         # Convert 3-letter code to 1-letter code
         one_letter = AA_3TO1.get(residue, 'X')  # Use 'X' if residue not found in mapping
 
-        # Set viewLabel with position offset for chain B
-        if chain == 'B':
-            display_position = positionProp[n] + offset_a
-        else:
-            display_position = positionProp[n]
-        
-        viewLabel[n] = f"{display_position}:{one_letter}"
+        # Set viewLabel with position
+        viewLabel[n] = f"{positionProp[n]}:{one_letter}"
 
         # Set coordinates in 'viewLayout'
         viewLayout[n] = tlp.Vec3f(xCoord, yCoord, zCoord)
