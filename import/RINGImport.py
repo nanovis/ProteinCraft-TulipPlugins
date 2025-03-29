@@ -34,6 +34,298 @@ def parse_ring_nodes(ring_nodes_file):
                 max_position_a = position
     return max_position_a
 
+def create_ring_graph(nodeFile, edgeFile):
+    """
+    Create a Tulip graph from RING node and edge files.
+    
+    Args:
+        nodeFile (str): Path to the node file (e.g. "xxx_ringNodes")
+        edgeFile (str): Path to the edge file (e.g. "xxx_ringEdges")
+        
+    Returns:
+        tlp.Graph: The created graph with all properties set
+        
+    Raises:
+        Exception: If there are errors reading the files or parsing the data
+    """
+    if not nodeFile or not edgeFile:
+        raise ValueError("Both node and edge files must be provided.")
+
+    # Find the highest residue number on chain A (offset)
+    offset_a = parse_ring_nodes(nodeFile)
+
+    # Create a new graph
+    new_graph = tlp.newGraph()
+    nodeFileBaseName = os.path.basename(nodeFile)
+    fileBase = nodeFileBaseName.replace(".pdb_ringNodes","")
+    new_graph.setName(f"RING_{fileBase}")
+
+    # -- Create node properties for the data columns in the node file --
+    chainProp      = new_graph.getStringProperty("chain")
+    positionProp   = new_graph.getIntegerProperty("position")
+    residueProp    = new_graph.getStringProperty("residue")
+    typeProp       = new_graph.getStringProperty("resType")
+    dsspProp       = new_graph.getStringProperty("dssp")
+    degreeProp     = new_graph.getIntegerProperty("degree")
+    bfactorProp    = new_graph.getDoubleProperty("bfactor_CA")
+    pdbFileProp    = new_graph.getStringProperty("pdbFileName")
+    modelProp      = new_graph.getIntegerProperty("model")
+    nodeIdProp     = new_graph.getStringProperty("nodeId") 
+    xProp         = new_graph.getDoubleProperty("x")
+    yProp         = new_graph.getDoubleProperty("y")
+    zProp         = new_graph.getDoubleProperty("z")
+
+    # We'll store node coordinates in the standard 'viewLayout' property
+    viewLayout     = new_graph.getLayoutProperty("viewLayout")
+
+    # Also store NodeId in the standard 'viewLabel' for convenience
+    viewLabel      = new_graph.getStringProperty("viewLabel")
+
+    # Add viewShape property for node shapes
+    viewShape      = new_graph.getIntegerProperty("viewShape")
+
+    # Add viewColor property for node colors
+    viewColor      = new_graph.getColorProperty("viewColor")
+
+    # We'll store the NodeId -> Tulip node mapping here to help edge creation
+    nodeMap = {}
+
+    # ------------------ Parse the Node file ------------------
+    try:
+        with open(nodeFile, 'r') as f:
+            lines = f.read().strip().split('\n')
+    except Exception as e:
+        raise Exception(f"Error reading node file: {e}")
+
+    # Assume the first line is a header
+    headerLine = lines[0].split('\t')
+    colIndex = {colName: i for i, colName in enumerate(headerLine)}
+
+    try:
+        nodeIdIdx = colIndex["NodeId"]
+        chainIdx = colIndex["Chain"]
+        positionIdx = colIndex["Position"]
+        residueIdx = colIndex["Residue"]
+        typeIdx = colIndex["Type"]
+        dsspIdx = colIndex["Dssp"]
+        degreeIdx = colIndex["Degree"]
+        bfactorIdx = colIndex["Bfactor_CA"]
+        xIdx = colIndex["x"]
+        yIdx = colIndex["y"]
+        zIdx = colIndex["z"]
+        pdbFileIdx = colIndex["pdbFileName"]
+        modelIdx = colIndex["Model"]
+    except KeyError as e:
+        raise Exception(f"Missing required column in node file: {e}")
+
+    # Iterate over each subsequent line to create nodes
+    for line in lines[1:]:
+        if not line.strip():
+            continue  # skip empty lines
+
+        tokens = line.split('\t')
+        if len(tokens) <= max(nodeIdIdx, modelIdx):
+            continue  # skip malformed line
+
+        nodeIdStr    = tokens[nodeIdIdx]
+        chain        = tokens[chainIdx]
+        positionStr  = tokens[positionIdx]
+        residue      = tokens[residueIdx]
+        resType      = tokens[typeIdx]
+        dssp         = tokens[dsspIdx]
+        degreeStr    = tokens[degreeIdx]
+        bfactorStr   = tokens[bfactorIdx]
+        xStr         = tokens[xIdx]
+        yStr         = tokens[yIdx]
+        zStr         = tokens[zIdx]
+        pdbFileName  = tokens[pdbFileIdx]
+        modelStr     = tokens[modelIdx]
+
+        # Create a new Tulip node
+        n = new_graph.addNode()
+
+        # Fill in the properties
+        nodeIdProp[n]     = nodeIdStr
+        chainProp[n]      = chain
+        residueProp[n]    = residue
+        typeProp[n]       = resType
+        dsspProp[n]       = dssp
+        pdbFileProp[n]    = pdbFileName
+
+        # Convert numeric fields from string
+        try:
+            positionProp[n]   = int(positionStr) if positionStr else 0
+            degreeProp[n]     = int(degreeStr) if degreeStr else 0
+            bfactorProp[n]    = float(bfactorStr) if bfactorStr else 0.0
+            xCoord            = float(xStr) if xStr else 0.0
+            yCoord            = float(yStr) if yStr else 0.0
+            zCoord            = float(zStr) if zStr else 0.0
+            modelProp[n]      = int(modelStr) if modelStr else 0
+        except ValueError:
+            # fallback to defaults
+            positionProp[n]   = 0
+            degreeProp[n]     = 0
+            bfactorProp[n]    = 0.0
+            xCoord            = 0.0
+            yCoord            = 0.0
+            zCoord            = 0.0
+            modelProp[n]      = 0
+
+        # Convert 3-letter code to 1-letter code
+        one_letter = AA_3TO1.get(residue, 'X')  # Use 'X' if residue not found in mapping
+
+        # Set viewLabel with position offset for chain B
+        if chain == 'B':
+            display_position = positionProp[n] + offset_a
+        else:
+            display_position = positionProp[n]
+        
+        viewLabel[n] = f"{display_position}:{one_letter}"
+
+        # Set coordinates in 'viewLayout'
+        viewLayout[n] = tlp.Vec3f(xCoord, yCoord, zCoord)
+        xProp[n] = xCoord
+        yProp[n] = yCoord
+        zProp[n] = zCoord
+
+        # Set node shape based on DSSP
+        viewShape[n] = 15  # default shape
+        if dssp == "E":
+            viewShape[n] = 7
+        if dssp == "H":
+            viewShape[n] = 14
+
+        # Set node color based on chain
+        if chain == "A":
+            viewColor[n] = tlp.Color(129, 109, 249, 255)
+        elif chain == "B":
+            viewColor[n] = tlp.Color(251, 134, 134, 255)
+
+        # Keep track of NodeId->node mapping for edge creation
+        nodeMap[nodeIdStr] = n
+
+    # ------------------ Parse the Edge file ------------------
+    # Create edge properties
+    interactionProp = new_graph.getStringProperty("interaction")
+    distanceProp    = new_graph.getDoubleProperty("distance")
+    angleProp       = new_graph.getDoubleProperty("angle")
+    atom1Prop       = new_graph.getStringProperty("atom1")
+    atom2Prop       = new_graph.getStringProperty("atom2")
+    donorProp       = new_graph.getStringProperty("donor")
+    positiveProp    = new_graph.getStringProperty("positive")
+    cationProp      = new_graph.getStringProperty("cation")
+    orientationProp = new_graph.getStringProperty("orientation")
+    edgeModelProp   = new_graph.getIntegerProperty("edgeModel")
+
+    # Create edges between consecutive residues on the same chain
+    chain_nodes = {}
+    for node_id, node in nodeMap.items():
+        chain = chainProp[node]
+        pos = positionProp[node]
+        if chain not in chain_nodes:
+            chain_nodes[chain] = {}
+        chain_nodes[chain][pos] = node
+
+    # Add edges between consecutive positions within each chain
+    for chain, positions in chain_nodes.items():
+        sorted_positions = sorted(positions.keys())
+        for i in range(len(sorted_positions) - 1):
+            pos1 = sorted_positions[i]
+            pos2 = sorted_positions[i + 1]
+            if pos2 == pos1 + 1:
+                node1 = positions[pos1]
+                node2 = positions[pos2]
+                edge = new_graph.addEdge(node1, node2)
+                interactionProp[edge] = "COV:PEP"
+                viewColor[edge] = tlp.Color(20, 20, 20, 255)
+
+    try:
+        with open(edgeFile, 'r') as f:
+            lines = f.read().strip().split('\n')
+    except Exception as e:
+        raise Exception(f"Error reading edge file: {e}")
+
+    headerLine = lines[0].split('\t')
+    colIndex = {colName: i for i, colName in enumerate(headerLine)}
+
+    try:
+        nodeId1Idx = colIndex["NodeId1"]
+        interactionIdx = colIndex["Interaction"]
+        nodeId2Idx = colIndex["NodeId2"]
+        distanceIdx = colIndex["Distance"]
+        angleIdx = colIndex["Angle"]
+        atom1Idx = colIndex["Atom1"]
+        atom2Idx = colIndex["Atom2"]
+        donorIdx = colIndex["Donor"]
+        positiveIdx = colIndex["Positive"]
+        cationIdx = colIndex["Cation"]
+        orientationIdx = colIndex["Orientation"]
+        eModelIdx = colIndex["Model"]
+    except KeyError as e:
+        raise Exception(f"Missing required column in edge file: {e}")
+
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        tokens = line.split('\t')
+        if len(tokens) <= max(nodeId2Idx, eModelIdx):
+            continue
+
+        node1Str     = tokens[nodeId1Idx]
+        interaction  = tokens[interactionIdx]
+        node2Str     = tokens[nodeId2Idx]
+        distanceStr  = tokens[distanceIdx]
+        angleStr     = tokens[angleIdx]
+        atom1        = tokens[atom1Idx]
+        atom2        = tokens[atom2Idx]
+        donor        = tokens[donorIdx]
+        positive     = tokens[positiveIdx]
+        cation       = tokens[cationIdx]
+        orientation  = tokens[orientationIdx]
+        emodelStr    = tokens[eModelIdx]
+
+        if node1Str not in nodeMap or node2Str not in nodeMap:
+            continue
+
+        n1 = nodeMap[node1Str]
+        n2 = nodeMap[node2Str]
+        e = new_graph.addEdge(n1, n2)
+        
+        interactionProp[e] = interaction
+        atom1Prop[e]       = atom1
+        atom2Prop[e]       = atom2
+        donorProp[e]       = donor
+        positiveProp[e]    = positive
+        cationProp[e]      = cation
+        orientationProp[e] = orientation
+
+        # Set edge color based on interaction type
+        if interaction.startswith("COV"):
+            viewColor[e] = tlp.Color(20, 20, 20, 255)  # Black
+        elif interaction.startswith("VDW"):
+            viewColor[e] = tlp.Color(180, 180, 180, 255)  # Light gray
+        elif interaction.startswith("HBOND"):
+            viewColor[e] = tlp.Color(61, 119, 176, 255)  # Blue
+        else:
+            viewColor[e] = tlp.Color(255, 28, 77, 255)  # Red
+
+        try:
+            distanceProp[e] = float(distanceStr) if distanceStr else 0.0
+        except ValueError:
+            distanceProp[e] = 0.0
+
+        try:
+            angleProp[e] = float(angleStr) if angleStr else 0.0
+        except ValueError:
+            angleProp[e] = 0.0
+
+        try:
+            edgeModelProp[e] = int(emodelStr) if emodelStr else 0
+        except ValueError:
+            edgeModelProp[e] = 0
+
+    return new_graph
+
 class RINGImport(tlp.Algorithm):
     """
     This plugin imports a graph from two TSV (tab-delimited) files:
@@ -75,314 +367,15 @@ class RINGImport(tlp.Algorithm):
         """
         Main function that creates and populates the graph from the input files.
         """
-        # -- Retrieve plugin parameters (the files chosen by user) --
-        nodeFile = self.dataSet["Node File"]
-        edgeFile = self.dataSet["Edge File"]
-
-        if not nodeFile or not edgeFile:
-            self.pluginProgress.setError("Both node and edge files must be provided.")
-            return False
-
-        # Find the highest residue number on chain A (offset)
-        offset_a = parse_ring_nodes(nodeFile)
-
-        # Create a new graph
-        self.new_graph = tlp.newGraph()
-        nodeFileBaseName = os.path.basename(nodeFile)
-        fileBase = nodeFileBaseName.replace(".pdb_ringNodes","")
-        self.new_graph.setName(f"RING_{fileBase}")
-
-        # -- Create node properties for the data columns in the node file --
-        chainProp      = self.new_graph.getStringProperty("chain")
-        positionProp   = self.new_graph.getIntegerProperty("position")
-        residueProp    = self.new_graph.getStringProperty("residue")
-        typeProp       = self.new_graph.getStringProperty("resType")
-        dsspProp       = self.new_graph.getStringProperty("dssp")
-        degreeProp     = self.new_graph.getIntegerProperty("degree")
-        bfactorProp    = self.new_graph.getDoubleProperty("bfactor_CA")
-        pdbFileProp    = self.new_graph.getStringProperty("pdbFileName")
-        modelProp      = self.new_graph.getIntegerProperty("model")
-        nodeIdProp     = self.new_graph.getStringProperty("nodeId") 
-        xProp         = self.new_graph.getDoubleProperty("x")
-        yProp         = self.new_graph.getDoubleProperty("y")
-        zProp         = self.new_graph.getDoubleProperty("z")
-
-        # We'll store node coordinates in the standard 'viewLayout' property
-        viewLayout     = self.new_graph.getLayoutProperty("viewLayout")
-
-        # Also store NodeId in the standard 'viewLabel' for convenience
-        viewLabel      = self.new_graph.getStringProperty("viewLabel")
-
-        # Add viewShape property for node shapes
-        viewShape      = self.new_graph.getIntegerProperty("viewShape")
-
-        # Add viewColor property for node colors
-        viewColor      = self.new_graph.getColorProperty("viewColor")
-
-        # We'll store the NodeId -> Tulip node mapping here to help edge creation
-        nodeMap = {}
-
-        # ------------------ Parse the Node file ------------------
         try:
-            with open(nodeFile, 'r') as f:
-                lines = f.read().strip().split('\n')
+            nodeFile = self.dataSet["Node File"]
+            edgeFile = self.dataSet["Edge File"]
+            self.new_graph = create_ring_graph(nodeFile, edgeFile)
+            return True
         except Exception as e:
             if self.pluginProgress:
-                self.pluginProgress.setError(f"Error reading node file: {e}")
+                self.pluginProgress.setError(str(e))
             return False
-
-        # Assume the first line is a header
-        # Example header: NodeId  Chain  Position  Residue  Type ...
-        headerLine = lines[0].split('\t')
-        # Let's define an index lookup so we can parse columns more robustly:
-        colIndex = {colName: i for i, colName in enumerate(headerLine)}
-
-        # If you prefer, you can require specific column names. 
-        # For example, if "NodeId" is guaranteed, do:
-        try:
-            nodeIdIdx = colIndex["NodeId"]
-            chainIdx = colIndex["Chain"]
-            positionIdx = colIndex["Position"]
-            residueIdx = colIndex["Residue"]
-            typeIdx = colIndex["Type"]
-            dsspIdx = colIndex["Dssp"]
-            degreeIdx = colIndex["Degree"]
-            bfactorIdx = colIndex["Bfactor_CA"]
-            xIdx = colIndex["x"]
-            yIdx = colIndex["y"]
-            zIdx = colIndex["z"]
-            pdbFileIdx = colIndex["pdbFileName"]
-            modelIdx = colIndex["Model"]
-        except KeyError as e:
-            if self.pluginProgress:
-                self.pluginProgress.setError(f"Missing required column in node file: {e}")
-            return False
-
-        # Iterate over each subsequent line to create nodes
-        for line in lines[1:]:
-            if not line.strip():
-                continue  # skip empty lines
-
-            tokens = line.split('\t')
-            # Make sure we have enough columns:
-            if len(tokens) <= max(nodeIdIdx, modelIdx):
-                continue  # skip malformed line
-
-            nodeIdStr    = tokens[nodeIdIdx]
-            chain        = tokens[chainIdx]
-            positionStr  = tokens[positionIdx]
-            residue      = tokens[residueIdx]
-            resType      = tokens[typeIdx]
-            dssp         = tokens[dsspIdx]
-            degreeStr    = tokens[degreeIdx]
-            bfactorStr   = tokens[bfactorIdx]
-            xStr         = tokens[xIdx]
-            yStr         = tokens[yIdx]
-            zStr         = tokens[zIdx]
-            pdbFileName  = tokens[pdbFileIdx]
-            modelStr     = tokens[modelIdx]
-
-            # Create a new Tulip node
-            n = self.new_graph.addNode()
-
-            # Fill in the properties
-            nodeIdProp[n]     = nodeIdStr
-            chainProp[n]      = chain
-            residueProp[n]    = residue
-            typeProp[n]       = resType
-            dsspProp[n]       = dssp
-            pdbFileProp[n]    = pdbFileName
-
-            # Convert numeric fields from string
-            try:
-                positionProp[n]   = int(positionStr) if positionStr else 0
-                degreeProp[n]     = int(degreeStr) if degreeStr else 0
-                bfactorProp[n]    = float(bfactorStr) if bfactorStr else 0.0
-                xCoord            = float(xStr) if xStr else 0.0
-                yCoord            = float(yStr) if yStr else 0.0
-                zCoord            = float(zStr) if zStr else 0.0
-                modelProp[n]      = int(modelStr) if modelStr else 0
-            except ValueError:
-                # fallback to defaults
-                positionProp[n]   = 0
-                degreeProp[n]     = 0
-                bfactorProp[n]    = 0.0
-                xCoord            = 0.0
-                yCoord            = 0.0
-                zCoord            = 0.0
-                modelProp[n]      = 0
-
-            # Convert 3-letter code to 1-letter code
-            one_letter = AA_3TO1.get(residue, 'X')  # Use 'X' if residue not found in mapping
-
-            # Set viewLabel with position offset for chain B
-            if chain == 'B':
-                display_position = positionProp[n] + offset_a
-            else:
-                display_position = positionProp[n]
-            
-            viewLabel[n] = f"{display_position}:{one_letter}"
-
-            # Set coordinates in 'viewLayout'
-            viewLayout[n] = tlp.Vec3f(xCoord, yCoord, zCoord)
-            xProp[n] = xCoord
-            yProp[n] = yCoord
-            zProp[n] = zCoord
-
-            # Set node shape based on DSSP
-            viewShape[n] = 15  # default shape
-            if dssp == "E":
-                viewShape[n] = 7
-            if dssp == "H":
-                viewShape[n] = 14
-
-            # Set node color based on chain
-            if chain == "A":
-                viewColor[n] = tlp.Color(129, 109, 249, 255)
-            elif chain == "B":
-                viewColor[n] = tlp.Color(251, 134, 134, 255)
-
-            # Keep track of NodeId->node mapping for edge creation
-            nodeMap[nodeIdStr] = n
-
-        # ------------------ Parse the Edge file ------------------
-        # We will create edges for each line that references existing NodeId1 and NodeId2
-        # Then store other columns in edge properties.
-
-        # Create edge properties
-        interactionProp = self.new_graph.getStringProperty("interaction")
-        distanceProp    = self.new_graph.getDoubleProperty("distance")
-        angleProp       = self.new_graph.getDoubleProperty("angle")
-        atom1Prop       = self.new_graph.getStringProperty("atom1")
-        atom2Prop       = self.new_graph.getStringProperty("atom2")
-        donorProp       = self.new_graph.getStringProperty("donor")
-        positiveProp    = self.new_graph.getStringProperty("positive")
-        cationProp      = self.new_graph.getStringProperty("cation")
-        orientationProp = self.new_graph.getStringProperty("orientation")
-        edgeModelProp   = self.new_graph.getIntegerProperty("edgeModel")
-
-        # Create edges between consecutive residues on the same chain
-        # First, organize nodes by chain and position
-        chain_nodes = {}
-        for node_id, node in nodeMap.items():
-            chain = chainProp[node]
-            pos = positionProp[node]
-            if chain not in chain_nodes:
-                chain_nodes[chain] = {}
-            chain_nodes[chain][pos] = node
-
-        # Add edges between consecutive positions within each chain
-        for chain, positions in chain_nodes.items():
-            sorted_positions = sorted(positions.keys())  # Sort positions numerically
-            for i in range(len(sorted_positions) - 1):
-                pos1 = sorted_positions[i]
-                pos2 = sorted_positions[i + 1]
-                # Only connect if positions are consecutive
-                if pos2 == pos1 + 1:
-                    node1 = positions[pos1]
-                    node2 = positions[pos2]
-                    edge = self.new_graph.addEdge(node1, node2)
-                    interactionProp[edge] = "COV:PEP"
-                    # Set edge color for COV:PEP (backbone)
-                    viewColor[edge] = tlp.Color(20, 20, 20, 255)
-
-        try:
-            with open(edgeFile, 'r') as f:
-                lines = f.read().strip().split('\n')
-        except Exception as e:
-            if self.pluginProgress:
-                self.pluginProgress.setError(f"Error reading edge file: {e}")
-            return False
-
-        headerLine = lines[0].split('\t')
-        colIndex = {colName: i for i, colName in enumerate(headerLine)}
-
-        # Attempt to find needed columns:
-        try:
-            nodeId1Idx = colIndex["NodeId1"]
-            interactionIdx = colIndex["Interaction"]
-            nodeId2Idx = colIndex["NodeId2"]
-            distanceIdx = colIndex["Distance"]
-            angleIdx = colIndex["Angle"]
-            atom1Idx = colIndex["Atom1"]
-            atom2Idx = colIndex["Atom2"]
-            donorIdx = colIndex["Donor"]
-            positiveIdx = colIndex["Positive"]
-            cationIdx = colIndex["Cation"]
-            orientationIdx = colIndex["Orientation"]
-            eModelIdx = colIndex["Model"]
-        except KeyError as e:
-            if self.pluginProgress:
-                self.pluginProgress.setError(f"Missing required column in edge file: {e}")
-            return False
-
-        for line in lines[1:]:
-            if not line.strip():
-                continue
-            tokens = line.split('\t')
-            if len(tokens) <= max(nodeId2Idx, eModelIdx):
-                continue
-
-            node1Str     = tokens[nodeId1Idx]
-            interaction  = tokens[interactionIdx]
-            node2Str     = tokens[nodeId2Idx]
-            distanceStr  = tokens[distanceIdx]
-            angleStr     = tokens[angleIdx]
-            atom1        = tokens[atom1Idx]
-            atom2        = tokens[atom2Idx]
-            donor        = tokens[donorIdx]
-            positive     = tokens[positiveIdx]
-            cation       = tokens[cationIdx]
-            orientation  = tokens[orientationIdx]
-            emodelStr    = tokens[eModelIdx]
-
-            # Check if these NodeIds exist in nodeMap
-            if node1Str not in nodeMap or node2Str not in nodeMap:
-                # Possibly the edge references nodes we didn't parse or don't exist
-                continue
-
-            # Create the edge
-            n1 = nodeMap[node1Str]
-            n2 = nodeMap[node2Str]
-            e = self.new_graph.addEdge(n1, n2)
-            
-            # Fill edge properties
-            interactionProp[e] = interaction
-            atom1Prop[e]       = atom1
-            atom2Prop[e]       = atom2
-            donorProp[e]       = donor
-            positiveProp[e]    = positive
-            cationProp[e]      = cation
-            orientationProp[e] = orientation
-
-            # Set edge color based on interaction type
-            if interaction.startswith("COV"):
-                viewColor[e] = tlp.Color(20, 20, 20, 255)  # Black
-            elif interaction.startswith("VDW"):
-                viewColor[e] = tlp.Color(180, 180, 180, 255)  # Light gray
-            elif interaction.startswith("HBOND"):
-                viewColor[e] = tlp.Color(61, 119, 176, 255)  # Blue
-            else:
-                viewColor[e] = tlp.Color(255, 28, 77, 255)  # Red
-
-            # Convert numeric fields
-            try:
-                distanceProp[e] = float(distanceStr) if distanceStr else 0.0
-            except ValueError:
-                distanceProp[e] = 0.0
-
-            try:
-                angleProp[e] = float(angleStr) if angleStr else 0.0
-            except ValueError:
-                angleProp[e] = 0.0
-
-            try:
-                edgeModelProp[e] = int(emodelStr) if emodelStr else 0
-            except ValueError:
-                edgeModelProp[e] = 0
-
-        # If we reach here, we successfully parsed both files and created a graph
-        return True
 
 
 pluginDoc = """
