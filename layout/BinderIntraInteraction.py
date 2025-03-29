@@ -26,6 +26,323 @@ def calculate_edge_lengths(graph, nodes, view_layout):
     
     return total_length
 
+def get_position_int(prop_position, n):
+    """
+    Helper function to convert position to int.
+    """
+    try:
+        return int(prop_position[n])
+    except:
+        return -999999
+
+def is_interesting_interaction(int_type, include_vdw):
+    """
+    Decide if an interaction should be included based on type.
+    """
+    if not int_type:
+        return False
+    if int_type.startswith("VDW"):
+        return include_vdw
+    return True
+
+def is_covalent(int_type):
+    """
+    Decide if an interaction is covalent.
+    """
+    if not int_type:
+        return False
+    return (int_type.startswith("COV") or "PEPTIDE" in int_type.upper())
+
+def find_chain_components(graph, chain_id="A"):
+    """
+    Find contiguous H/E components in a chain.
+    
+    Args:
+        graph: The Tulip graph
+        chain_id: The chain ID to analyze (default "A")
+        
+    Returns:
+        List of component dictionaries with keys: nodes, dssp, startPos, endPos
+    """
+    prop_chain = graph["chain"]
+    prop_position = graph["position"]
+    prop_dssp = graph["dssp"]
+    
+    chain_nodes = [n for n in graph.getNodes() if prop_chain[n] == chain_id]
+    chain_nodes.sort(key=lambda n: get_position_int(prop_position, n))
+    
+    components = []
+    
+    def flush_component(node_list, dssp_code, start_p, end_p):
+        if node_list and dssp_code in ("H","E"):
+            components.append({
+                "nodes": list(node_list),
+                "dssp": dssp_code,
+                "startPos": start_p,
+                "endPos": end_p
+            })
+    
+    curr_nodes = []
+    curr_dssp = None
+    curr_start = None
+    curr_end = None
+    prev_pos = None
+    
+    for i, nd in enumerate(chain_nodes):
+        d = prop_dssp[nd] or ""
+        p = get_position_int(prop_position, nd)
+        
+        if i == 0:
+            if d in ("H","E"):
+                curr_nodes = [nd]
+                curr_dssp = d
+                curr_start = p
+                curr_end = p
+        else:
+            if curr_nodes:
+                if (d == curr_dssp) and (p == prev_pos + 1) and (d in ("H","E")):
+                    curr_nodes.append(nd)
+                    curr_end = p
+                else:
+                    flush_component(curr_nodes, curr_dssp, curr_start, curr_end)
+                    if d in ("H","E"):
+                        curr_nodes = [nd]
+                        curr_dssp = d
+                        curr_start = p
+                        curr_end = p
+                    else:
+                        curr_nodes = []
+                        curr_dssp = None
+                        curr_start = None
+                        curr_end = None
+            else:
+                if d in ("H","E"):
+                    curr_nodes = [nd]
+                    curr_dssp = d
+                    curr_start = p
+                    curr_end = p
+        prev_pos = p
+    
+    if curr_nodes:
+        flush_component(curr_nodes, curr_dssp, curr_start, curr_end)
+    
+    components.sort(key=lambda c: c["startPos"])
+    return components
+
+def do_components_interact(graph, compA, compB, include_vdw=True):
+    """
+    Check if two components interact with each other.
+    """
+    nodeSetA = set(compA["nodes"])
+    nodeSetB = set(compB["nodes"])
+    prop_interaction = graph["interaction"]
+    
+    for nA in nodeSetA:
+        for e in graph.getInOutEdges(nA):
+            itype = prop_interaction[e]
+            if not is_interesting_interaction(itype, include_vdw):
+                continue
+            if is_covalent(itype):
+                continue
+            nOther = graph.target(e) if graph.source(e) == nA else graph.source(e)
+            if nOther in nodeSetB:
+                return True
+    return False
+
+def create_binder_intra_subgraph(graph, compA, compB, include_vdw=True, layout_orientation="vertical"):
+    """
+    Create a subgraph for a pair of interacting components with bipartite layout.
+    
+    Args:
+        graph: The main Tulip graph
+        compA: First component dictionary
+        compB: Second component dictionary
+        include_vdw: Whether to include VDW interactions
+        layout_orientation: "vertical" or "horizontal"
+        
+    Returns:
+        The created subgraph
+    """
+    sub_name = f"CompA_{compA['startPos']}_{compA['endPos']}__CompB_{compB['startPos']}_{compB['endPos']}"
+    subg = graph.getSubGraph(sub_name)
+    if subg:
+        # clear old content
+        for nd in list(subg.getNodes()):
+            subg.delNode(nd)
+        for e in list(subg.getEdges()):
+            subg.delEdge(e)
+    else:
+        subg = graph.addSubGraph(sub_name)
+    
+    sub_layout = subg.getLocalLayoutProperty("viewLayout")
+    
+    # gather all nodes
+    all_nodes = set(compA["nodes"] + compB["nodes"])
+    for nd in all_nodes:
+        subg.addNode(nd)
+    
+    # Track nodes that have interactions
+    nodes_with_interactions = set()
+    prop_interaction = graph["interaction"]
+    
+    # gather edges (non-covalent, interesting)
+    for nd in all_nodes:
+        for e in graph.getInOutEdges(nd):
+            itype = prop_interaction[e]
+            if not is_interesting_interaction(itype, include_vdw):
+                continue
+            if is_covalent(itype):
+                continue
+            nOther = graph.target(e) if graph.source(e) == nd else graph.source(e)
+            if nOther in all_nodes:
+                if ((nd in compA["nodes"] and nOther in compB["nodes"]) or 
+                    (nd in compB["nodes"] and nOther in compA["nodes"])):
+                    subg.addEdge(e)
+                    nodes_with_interactions.add(nd)
+                    nodes_with_interactions.add(nOther)
+    
+    # Set opacity for nodes without interactions
+    prop_viewParentColor = subg.getColorProperty("viewColor")
+    prop_viewColor = subg.getLocalColorProperty("viewColor")
+    
+    for e in subg.getEdges():
+        prop_viewColor[e] = prop_viewParentColor[e]
+    
+    for nd in all_nodes:
+        current_color = prop_viewParentColor[nd]
+        if nd not in nodes_with_interactions:
+            prop_viewColor[nd] = (current_color[0], current_color[1], current_color[2], 64)
+        else:
+            prop_viewColor[nd] = (current_color[0], current_color[1], current_color[2], 255)
+    
+    # Apply bipartite layout
+    layout_bipartite(compA["nodes"], compB["nodes"], sub_layout, layout_orientation)
+    
+    return subg
+
+def layout_bipartite(compA_nodes, compB_nodes, sub_layout, layout_orientation="vertical"):
+    """
+    Apply bipartite layout to nodes from two components.
+    """
+    def get_position_int(n):
+        try:
+            return int(prop_position[n])
+        except:
+            return -999999
+    
+    # sort each group by ascending position
+    compA_nodes = sorted(compA_nodes, key=get_position_int)
+    compB_nodes = sorted(compB_nodes, key=get_position_int)
+    
+    if layout_orientation == "vertical":
+        left_x = 0.0
+        right_x = 3.0
+        top_y = 0.0
+        step_y = -1.5
+        
+        # First try with compB in original order
+        yA = top_y
+        for ndA in compA_nodes:
+            sub_layout[ndA] = tlp.Vec3f(left_x, yA, 0)
+            yA += step_y
+        
+        yB = top_y
+        for ndB in compB_nodes:
+            sub_layout[ndB] = tlp.Vec3f(right_x, yB, 0)
+            yB += step_y
+        
+        # Calculate edge lengths for original orientation
+        orig_length = calculate_edge_lengths(self.graph, compA_nodes + compB_nodes, sub_layout)
+        
+        # Try reversed compB
+        yB = top_y
+        for ndB in reversed(compB_nodes):
+            sub_layout[ndB] = tlp.Vec3f(right_x, yB, 0)
+            yB += step_y
+        
+        # Calculate edge lengths for reversed orientation
+        reversed_length = calculate_edge_lengths(self.graph, compA_nodes + compB_nodes, sub_layout)
+        
+        # Choose orientation with shorter total edge length
+        if reversed_length >= orig_length:
+            # Revert back to original orientation
+            yB = top_y
+            for ndB in compB_nodes:
+                sub_layout[ndB] = tlp.Vec3f(right_x, yB, 0)
+                yB += step_y
+    
+    elif layout_orientation == "horizontal":
+        top_y = 0.0
+        bottom_y = -1.5
+        left_x = 0.0
+        step_x = 3.0
+        
+        # First try with compB in original order
+        xA = left_x
+        for ndA in compA_nodes:
+            sub_layout[ndA] = tlp.Vec3f(xA, top_y, 0)
+            xA += step_x
+        
+        xB = left_x
+        for ndB in compB_nodes:
+            sub_layout[ndB] = tlp.Vec3f(xB, bottom_y, 0)
+            xB += step_x
+        
+        # Calculate edge lengths for original orientation
+        orig_length = calculate_edge_lengths(self.graph, compA_nodes + compB_nodes, sub_layout)
+        
+        # Try reversed compB
+        xB = left_x
+        for ndB in reversed(compB_nodes):
+            sub_layout[ndB] = tlp.Vec3f(xB, bottom_y, 0)
+            xB += step_x
+        
+        # Calculate edge lengths for reversed orientation
+        reversed_length = calculate_edge_lengths(self.graph, compA_nodes + compB_nodes, sub_layout)
+        
+        # Choose orientation with shorter total edge length
+        if reversed_length >= orig_length:
+            # Revert back to original orientation
+            xB = left_x
+            for ndB in compB_nodes:
+                sub_layout[ndB] = tlp.Vec3f(xB, bottom_y, 0)
+                xB += step_x
+
+def create_binder_intra_interactions(graph, include_vdw=True, layout_orientation="vertical"):
+    """
+    Main function to create subgraphs for all interacting pairs of H/E components in chain A.
+    
+    Args:
+        graph: The main Tulip graph
+        include_vdw: Whether to include VDW interactions
+        layout_orientation: "vertical" or "horizontal"
+        
+    Returns:
+        List of created subgraphs
+    """
+    # Find components in chain A
+    components = find_chain_components(graph)
+    
+    # Create subgraphs for interacting pairs
+    subgraphs = []
+    for i in range(len(components)):
+        for j in range(i+1, len(components)):
+            compA = components[i]
+            compB = components[j]
+            
+            if do_components_interact(graph, compA, compB, include_vdw):
+                subg = create_binder_intra_subgraph(graph, compA, compB, include_vdw, layout_orientation)
+                subgraphs.append(subg)
+                
+                # Create and configure the view
+                nlv_binder_intra_sub = tlpgui.createNodeLinkDiagramView(subg)
+                renderingParameters = nlv_binder_intra_sub.getRenderingParameters()
+                renderingParameters.setLabelScaled(True)
+                nlv_binder_intra_sub.setRenderingParameters(renderingParameters)
+                nlv_binder_intra_sub.centerView()
+    
+    return subgraphs
+
 class BinderIntraInteraction(tlp.Algorithm):
     """
     This plugin finds contiguous H/E components on chain A
@@ -82,7 +399,7 @@ class BinderIntraInteraction(tlp.Algorithm):
                 return -999999
 
         # Decide which edges are "interesting"
-        def is_interesting_interaction(int_type):
+        def is_interesting_interaction(int_type, include_vdw):
             if not int_type:
                 return False
             if int_type.startswith("VDW"):
@@ -178,7 +495,7 @@ class BinderIntraInteraction(tlp.Algorithm):
             for nA in nodeSetA:
                 for e in self.graph.getInOutEdges(nA):
                     itype = prop_interaction[e]
-                    if not is_interesting_interaction(itype):
+                    if not is_interesting_interaction(itype, include_vdw):
                         continue
                     if is_covalent(itype):
                         continue
@@ -327,7 +644,7 @@ class BinderIntraInteraction(tlp.Algorithm):
                     for nd in all_nodes:
                         for e in self.graph.getInOutEdges(nd):
                             itype = prop_interaction[e]
-                            if not is_interesting_interaction(itype):
+                            if not is_interesting_interaction(itype, include_vdw):
                                 continue
                             if is_covalent(itype):
                                 continue
