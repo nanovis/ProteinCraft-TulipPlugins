@@ -57,14 +57,7 @@ class ApplyAllInteractionLayouts(tlp.Algorithm):
         if not success:
             return False
 
-        # 2. Apply Binder Target and Singleton Interaction
-        binder_target_singleton_params = tlp.getDefaultPluginParameters("Binder Target and Singleton Interaction", self.graph)
-        binder_target_singleton_params["include_vdw"] = include_vdw
-        success = self.graph.applyAlgorithm("Binder Target and Singleton Interaction", binder_target_singleton_params)
-        if not success:
-            return False
-
-        # 3. Apply Binder Intra Interaction
+        # 2. Apply Binder Intra Interaction
         binder_intra_params = tlp.getDefaultPluginParameters("Binder Intra Interaction", self.graph)
         binder_intra_params["include_vdw"] = include_vdw
         binder_intra_params["layout_orientation"] = layout_orientation
@@ -72,6 +65,13 @@ class ApplyAllInteractionLayouts(tlp.Algorithm):
         if not success:
             return False
 
+        # 3. Apply Binder Target Connected Interaction
+        binder_target_connected_params = tlp.getDefaultPluginParameters("Binder Target Connected Interaction", self.graph)
+        binder_target_connected_params["include_vdw"] = include_vdw
+        success = self.graph.applyAlgorithm("Binder Target Connected Interaction", binder_target_connected_params)
+        if not success:
+            return False
+        
         if self.pluginProgress:
             self.pluginProgress.setComment(
                 "Successfully applied all three interaction layout algorithms."
