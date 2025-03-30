@@ -25,11 +25,16 @@ def get_pos_int(node, prop_position):
     except:
         return -9999999
 
-def identify_interacting_nodes(graph, prop_chain, prop_position, prop_interaction, include_vdw):
+def identify_interacting_nodes(graph, include_vdw):
     """
     Identifies nodes from chain A and B that interact with each other.
     Returns sorted lists of interacting binder and target nodes.
     """
+    # Get properties from graph
+    prop_chain = graph["chain"]
+    prop_position = graph["position"]
+    prop_interaction = graph["interaction"]
+    
     # Separate chain A (binder) vs chain B (target)
     binder_nodes = []
     target_nodes = []
@@ -76,12 +81,14 @@ def identify_interacting_nodes(graph, prop_chain, prop_position, prop_interactio
     
     return interacting_binder_list, interacting_target_list
 
-def create_interaction_subgraph(graph, interacting_binder_list, interacting_target_list, 
-                              prop_interaction, include_vdw):
+def create_interaction_subgraph(graph, interacting_binder_list, interacting_target_list, include_vdw):
     """
     Creates or resets a subgraph containing the interacting nodes.
     Returns the subgraph.
     """
+    # Get property from graph
+    prop_interaction = graph["interaction"]
+    
     binder_target_sub = graph.getSubGraph("BinderTargetInteraction")
     if binder_target_sub is None:
         binder_target_sub = graph.addSubGraph("BinderTargetInteraction")
@@ -163,19 +170,13 @@ class BinderTargetInteraction(tlp.Algorithm):
         # Retrieve user parameter
         include_vdw = self.dataSet["include_vdw"]
 
-        # Retrieve relevant properties
-        prop_chain = self.graph["chain"]          # e.g. "A" or "B"
-        prop_position = self.graph["position"]    # residue numbering
-        prop_interaction = self.graph["interaction"]  # e.g. "HBOND:MC_MC", "VDW:SC_SC"
-
         # Identify interacting nodes
         interacting_binder_list, interacting_target_list = identify_interacting_nodes(
-            self.graph, prop_chain, prop_position, prop_interaction, include_vdw)
+            self.graph, include_vdw)
             
         # Create or reset subgraph
         binder_target_sub = create_interaction_subgraph(
-            self.graph, interacting_binder_list, interacting_target_list, 
-            prop_interaction, include_vdw)
+            self.graph, interacting_binder_list, interacting_target_list, include_vdw)
             
         # Layout the subgraph
         sub_view_layout = binder_target_sub.getLocalLayoutProperty("viewLayout")
