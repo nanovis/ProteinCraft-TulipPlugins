@@ -18,6 +18,14 @@ spec.loader.exec_module(RINGImport)
 # Now you can access its contents
 create_ring_graph = RINGImport.create_ring_graph
 
+# Import binder intra interaction functions
+binder_module_path = Path("../layout/BinderIntraInteraction.py")
+binder_spec = importlib.util.spec_from_file_location("BinderIntraInteraction", binder_module_path)
+BinderIntraInteraction = importlib.util.module_from_spec(binder_spec)
+sys.modules["BinderIntraInteraction"] = BinderIntraInteraction
+binder_spec.loader.exec_module(BinderIntraInteraction)
+
+from BinderIntraInteraction import generate_subgraphs
 
 def count_interactions(graph):
     """
@@ -38,10 +46,12 @@ def count_interactions(graph):
         'inter_chain_total': 0,
         'inter_chain_vdw': 0,
         'inter_chain_hbond': 0,
-        'inter_chain_other': 0
+        'inter_chain_other': 0,
+        'binder_components_bonds': 0,
+        'binder_components_bonds_without_vdw': 0
     }
     
-    # Iterate through all edges
+    # Count inter-chain interactions
     for edge in graph.getEdges():
         # Get the nodes connected by this edge
         n1, n2 = graph.source(edge), graph.target(edge)
@@ -64,7 +74,14 @@ def count_interactions(graph):
     
     # Calculate 'without VDW'
     counts['inter_chain_without_vdw'] = counts['inter_chain_total'] - counts['inter_chain_vdw']
-    
+
+    subgraphs = generate_subgraphs(graph, include_vdw=True)
+    for subg in subgraphs:
+        for edge in subg.getEdges():
+            counts['binder_components_bonds'] += 1
+            if not interactionProp[edge].startswith("VDW"):
+                counts['binder_components_bonds_without_vdw'] += 1
+     
     return counts
 
 def main():
@@ -93,12 +110,17 @@ def main():
         counts = count_interactions(graph)
         
         # Print results
-        print("\n===== Inter-Chain Interaction Counts =====")
+        print("\n===== Interaction Counts =====")
+        print("\nInter-Chain Interactions:")
         print(f"Total Inter-chain bonds: {counts['inter_chain_total']}")
         print(f"Inter-chain bonds WITHOUT VDW: {counts['inter_chain_without_vdw']}")
         print(f"All inter-chain HBonds: {counts['inter_chain_hbond']}")
         print(f"All inter-chain VDW bonds: {counts['inter_chain_vdw']}")
         print(f"All inter-chain OTHER bonds: {counts['inter_chain_other']}")
+        
+        print("\nBinder Components:")
+        print(f"Number of binder component bonds: {counts['binder_components_bonds']}")
+        print(f"Number of binder component bonds WITHOUT VDW: {counts['binder_components_bonds_without_vdw']}")
         
     except Exception as e:
         print(f"Error processing files: {e}")
