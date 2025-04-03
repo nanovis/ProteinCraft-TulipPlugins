@@ -158,17 +158,18 @@ class TetrisImport(tlp.Algorithm):
                         detail_entries = details_str.split('|')
                         for j, entry in enumerate(detail_entries):
                             fields = entry.split(':')
-                            if len(fields) < 4:
+                            if len(fields) < 5:
                                 continue
                                 
                             # Parse fields
                             chain = fields[1]
                             res_num = fields[2]
                             res_type = fields[3]
+                            dssp = fields[4]
                             
                             # Create sub-node
                             sub_node = self.new_graph.addNode()
-                            sub_label = f"{chain}:{res_num}:{res_type}"
+                            sub_label = f"{chain}:{res_num}:{res_type}:{dssp}"
                             viewLabel[sub_node] = sub_label
                             
                             # Color by residue type
