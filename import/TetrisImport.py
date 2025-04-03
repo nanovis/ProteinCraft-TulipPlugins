@@ -116,16 +116,8 @@ class TetrisImport(tlp.Algorithm):
         try:
             # Open and read the file with csv module for better handling
             with open(input_file, 'r', newline='') as f:
-                # First check if it's tab-delimited
-                dialect = csv.Sniffer().sniff(f.read(1024))
-                f.seek(0)
-                
-                if dialect.delimiter == '\t':
-                    reader = csv.DictReader(f, dialect=dialect)
-                else:
-                    # If not tab-delimited, use the default CSV reader
-                    f.seek(0)
-                    reader = csv.DictReader(f)
+                # Use tab delimiter explicitly for TSV files
+                reader = csv.DictReader(f, delimiter='\t')
                 
                 # Check if required columns exist
                 fieldnames = reader.fieldnames
