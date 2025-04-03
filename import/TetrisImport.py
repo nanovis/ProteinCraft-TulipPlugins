@@ -3,7 +3,7 @@ import tulipplugins
 from tulipgui import tlpgui
 import csv
 
-class LogoImport(tlp.Algorithm):
+class TetrisImport(tlp.Algorithm):
     """
     A plugin that reads a tab-delimited file with residue interaction data and creates:
     - Main nodes for each residue row
@@ -23,7 +23,7 @@ class LogoImport(tlp.Algorithm):
             "Input File",
             True,
             "Path to the tab-delimited file containing interaction data",
-            "/home/luod/ProteinCraft/run/4_PD-L1/outs_AF2ig_RING_interaction_logo.csv"
+            "/home/luod/ProteinCraft/run/4_PD-L1/outs_tetris.csv"
         )
         
         # Add spacing parameters
@@ -75,7 +75,7 @@ class LogoImport(tlp.Algorithm):
         
         # Create a new graph
         self.new_graph = tlp.newGraph()
-        self.new_graph.setName("Residue Interaction Logo")
+        self.new_graph.setName("Residue Interaction Tetris")
         
         # Get standard Tulip properties
         viewLayout = self.new_graph.getLayoutProperty('viewLayout')
@@ -225,8 +225,8 @@ Customizable parameters allow for flexible use with different data formats.</p>
 
 # Register the plugin with Tulip
 tulipplugins.registerPluginOfGroup(
-    "LogoImport",                       # Class name
-    "Interaction Logo Import",          # Plugin description
+    "TetrisImport",                       # Class name
+    "Tetris Import",          # Plugin description
     "Roden Luo",                        # Author
     "2025",                             # Date/year
     pluginDoc,                          # Documentation
