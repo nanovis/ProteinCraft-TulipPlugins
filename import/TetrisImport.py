@@ -81,6 +81,7 @@ class TetrisImport(tlp.Algorithm):
         viewLayout = self.new_graph.getLayoutProperty('viewLayout')
         viewColor = self.new_graph.getColorProperty('viewColor')
         viewLabel = self.new_graph.getStringProperty('viewLabel')
+        viewShape = self.new_graph.getIntegerProperty('viewShape')
         
         # Dictionary to hold dynamic properties
         numericProps = {}
@@ -139,7 +140,21 @@ class TetrisImport(tlp.Algorithm):
                 for row in reader:
                     # Create main node
                     main_node = self.new_graph.addNode()
-                    viewLabel[main_node] = row[main_label_col]
+                    
+                    # Parse B_residue to get components
+                    b_residue_parts = row[main_label_col].split(':')
+                    if len(b_residue_parts) >= 4:
+                        b_chain, b_res_num, b_res_1letter, b_dssp = b_residue_parts
+                        viewLabel[main_node] = row[main_label_col]
+                        
+                        # Set node shape based on DSSP
+                        viewShape[main_node] = 15  # default shape
+                        if b_dssp == "E":
+                            viewShape[main_node] = 18
+                        if b_dssp == "H":
+                            viewShape[main_node] = 14
+                    else:
+                        viewLabel[main_node] = row[main_label_col]
                     
                     # Position the main node
                     main_coord = tlp.Vec3f(row_counter * x_spacing, y_main, 0.0)
@@ -175,6 +190,13 @@ class TetrisImport(tlp.Algorithm):
                             # Color by residue type
                             color = residueColorMap.get(res_type, tlp.Color(200, 200, 200))
                             viewColor[sub_node] = color
+                            
+                            # Set node shape based on DSSP
+                            viewShape[sub_node] = 15  # default shape
+                            if dssp == "E":
+                                viewShape[sub_node] = 7
+                            if dssp == "H":
+                                viewShape[sub_node] = 14
                             
                             # Position above the main node
                             sub_coord = tlp.Vec3f(

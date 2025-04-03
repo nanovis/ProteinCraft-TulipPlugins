@@ -160,7 +160,7 @@ def create_ring_graph(nodeFile, edgeFile):
         # Set node shape based on DSSP
         viewShape[n] = 15  # default shape
         if dssp == "E":
-            viewShape[n] = 7
+            viewShape[n] = 18
         if dssp == "H":
             viewShape[n] = 14
 
