@@ -145,7 +145,7 @@ class TetrisImport(tlp.Algorithm):
                     b_residue_parts = row[main_label_col].split(':')
                     if len(b_residue_parts) >= 4:
                         b_chain, b_res_num, b_res_1letter, b_dssp = b_residue_parts
-                        viewLabel[main_node] = row[main_label_col]
+                        viewLabel[main_node] = f"{b_res_num}:{b_res_1letter}"
                         
                         # Set node shape based on DSSP
                         viewShape[main_node] = 15  # default shape
@@ -184,7 +184,7 @@ class TetrisImport(tlp.Algorithm):
                             
                             # Create sub-node
                             sub_node = self.new_graph.addNode()
-                            sub_label = f"{chain}:{res_num}:{res_type}:{dssp}"
+                            sub_label = f"{res_num}:{res_type}"
                             viewLabel[sub_node] = sub_label
                             
                             # Color by residue type
