@@ -3,7 +3,7 @@ import sys
 import os
 import importlib.util
 from pathlib import Path
-
+from tulip import tlp
 # Define the full path to the module
 module_path = Path("../import/RINGImport.py")
 
@@ -25,7 +25,15 @@ BinderIntraInteraction = importlib.util.module_from_spec(binder_spec)
 sys.modules["BinderIntraInteraction"] = BinderIntraInteraction
 binder_spec.loader.exec_module(BinderIntraInteraction)
 
+binderTarget_module_path = Path("../layout/BinderTargetInteraction.py")
+binderTarget_spec = importlib.util.spec_from_file_location("BinderTargetInteraction", binderTarget_module_path)
+BinderTargetInteraction = importlib.util.module_from_spec(binderTarget_spec)
+sys.modules["BinderTargetInteraction"] = BinderTargetInteraction
+binderTarget_spec.loader.exec_module(BinderTargetInteraction)
+
 from BinderIntraInteraction import generate_subgraphs
+from BinderTargetInteraction import identify_interacting_nodes, create_interaction_subgraph
+
 
 def count_interactions(graph):
     """
@@ -81,6 +89,30 @@ def count_interactions(graph):
             counts['binder_components_bonds'] += 1
             if not interactionProp[edge].startswith("VDW"):
                 counts['binder_components_bonds_without_vdw'] += 1
+
+    interacting_binder_list, interacting_target_list = identify_interacting_nodes(graph, include_vdw=True)
+    binder_target_sub = create_interaction_subgraph(graph, interacting_binder_list, interacting_target_list, include_vdw=True)
+    counts['binder_target_bonds'] = binder_target_sub.numberOfEdges()
+
+    # Get the largest connected component
+    connected_components = tlp.ConnectedTest.computeConnectedComponents(binder_target_sub)
+    if connected_components:
+        largest_component = max(connected_components, key=len)
+        counts['binder_target_bonds_largest_component'] = len(largest_component)
+    else:
+        counts['binder_target_bonds_largest_component'] = 0
+
+    interacting_binder_list, interacting_target_list = identify_interacting_nodes(graph, include_vdw=False)
+    binder_target_sub = create_interaction_subgraph(graph, interacting_binder_list, interacting_target_list, include_vdw=False)
+    counts['binder_target_bonds_no_vdw'] = binder_target_sub.numberOfEdges()
+
+    # Get the largest connected component
+    connected_components = tlp.ConnectedTest.computeConnectedComponents(binder_target_sub)
+    if connected_components:
+        largest_component = max(connected_components, key=len)
+        counts['binder_target_bonds_no_vdw_largest_component'] = len(largest_component)
+    else:
+        counts['binder_target_bonds_no_vdw_largest_component'] = 0
      
     return counts
 
@@ -121,7 +153,14 @@ def main():
         print("\nBinder Components:")
         print(f"Number of binder component bonds: {counts['binder_components_bonds']}")
         print(f"Number of binder component bonds WITHOUT VDW: {counts['binder_components_bonds_without_vdw']}")
-        
+
+        print("\nBinder Target:")
+        print(f"Number of binder target bonds: {counts['binder_target_bonds']}")
+        print(f"Number of binder target bonds in largest component: {counts['binder_target_bonds_largest_component']}")
+
+        print("\nBinder Target (no VDW):")
+        print(f"Number of binder target bonds: {counts['binder_target_bonds_no_vdw']}")
+        print(f"Number of binder target bonds in largest component: {counts['binder_target_bonds_no_vdw_largest_component']}")
     except Exception as e:
         print(f"Error processing files: {e}")
         sys.exit(1)
