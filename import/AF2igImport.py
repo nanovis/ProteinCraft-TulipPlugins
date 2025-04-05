@@ -137,10 +137,16 @@ class AF2igImport(tlp.Algorithm):
         selected_props["0"] = "binder_aligned_rmsd"
         selected_props["1"] = "pae_interaction" 
         selected_props["2"] = "plddt_total"
+
+        selected_props_order = {}
+        selected_props_order["0"] = False
+        selected_props_order["1"] = False
+        selected_props_order["2"] = True
         
         # Update the state
         state = pcv.state()
         state["selectedProperties"] = selected_props
+        state["selectedPropertiesOrder"] = selected_props_order
         pcv.setState(state)
 
         # If we get here, the import has succeeded
