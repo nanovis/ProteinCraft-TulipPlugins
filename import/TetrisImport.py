@@ -75,7 +75,7 @@ class TetrisImport(tlp.Algorithm):
         
         # Create a new graph
         self.new_graph = tlp.newGraph()
-        self.new_graph.setName("Residue Interaction Tetris")
+        self.new_graph.setName("Tetris")
         
         # Get standard Tulip properties
         viewLayout = self.new_graph.getLayoutProperty('viewLayout')

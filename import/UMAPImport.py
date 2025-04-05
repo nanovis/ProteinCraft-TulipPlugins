@@ -72,7 +72,7 @@ class UMAPImport(tlp.Algorithm):
         
         # Create a new graph
         self.new_graph = tlp.newGraph()
-        self.new_graph.setName("UMAP Visualization")
+        self.new_graph.setName("UMAP")
         
         # Get standard Tulip properties
         viewLayout = self.new_graph.getLayoutProperty('viewLayout')
