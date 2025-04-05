@@ -56,12 +56,6 @@ class SyncSelectionInChimeraX(tlp.Algorithm):
         # Gather selected nodes from the root graph
         selected_nodes = [n for n in root_graph.getNodes() if viewSelection[n]]
 
-        if not selected_nodes:
-            # No nodes selected, nothing to do
-            if self.pluginProgress:
-                self.pluginProgress.setWarning("No nodes selected.")
-            return True
-
         # Create a dictionary for all selected nodes
         sync_data = {}
         for n in selected_nodes:
