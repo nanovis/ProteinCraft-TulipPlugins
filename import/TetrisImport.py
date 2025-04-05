@@ -82,6 +82,8 @@ class TetrisImport(tlp.Algorithm):
         viewColor = self.new_graph.getColorProperty('viewColor')
         viewLabel = self.new_graph.getStringProperty('viewLabel')
         viewShape = self.new_graph.getIntegerProperty('viewShape')
+        descriptionP = self.new_graph.getStringProperty('description')
+        
         
         # Dictionary to hold dynamic properties
         numericProps = {}
@@ -177,6 +179,7 @@ class TetrisImport(tlp.Algorithm):
                                 continue
                                 
                             # Parse fields
+                            pdb_filename = fields[0]
                             chain = fields[1]
                             res_num = fields[2]
                             res_type = fields[3]
@@ -186,6 +189,9 @@ class TetrisImport(tlp.Algorithm):
                             sub_node = self.new_graph.addNode()
                             sub_label = f"{res_num}:{res_type}"
                             viewLabel[sub_node] = sub_label
+                            
+                            # Store PDB filename without .pdb suffix
+                            descriptionP[sub_node] = pdb_filename.replace('.pdb', '')
                             
                             # Color by residue type
                             color = residueColorMap.get(res_type, tlp.Color(200, 200, 200))

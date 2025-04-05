@@ -70,8 +70,25 @@ class SyncSelectionInChimeraX(tlp.Algorithm):
                     "display": True
                 }
 
+        if Tetris_graph:
+            viewSelection = Tetris_graph.getBooleanProperty("viewSelection")
+            description = Tetris_graph.getStringProperty("description")
+            # Gather selected nodes from the root graph
+            selected_nodes = [n for n in Tetris_graph.getNodes() if viewSelection[n]]
+
+            for n in selected_nodes:
+                filename = description[n]
+                full_path = f"{base_path}/{filename}.pdb"
+                node_id = str(n.id)
+                sync_data[full_path] = {
+                    "id": node_id,
+                    "name": filename,
+                    "display": True
+                }
+
         # Construct the ChimeraX command
         command = f"proteincraft sync jsonString '{json.dumps(sync_data)}'"
+        # print(command)
         
         try:
             response = requests.get(base_url, params={"command": command})
