@@ -97,7 +97,7 @@ tulipplugins.registerPluginOfGroup(
     "SyncSelectionInChimeraX",       # internal identifier
     "SyncSelectionInChimeraX",       # displayed name
     "Roden Luo",                     # author
-    "21/03/2025",                    # creation date
+    "04/04/2025",                    # creation date
     "Sync selected nodes with ChimeraX via proteincraft sync",  # short description
     "1.0",
     "ProteinCraft"
