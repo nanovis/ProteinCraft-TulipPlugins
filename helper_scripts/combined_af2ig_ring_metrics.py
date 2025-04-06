@@ -157,12 +157,20 @@ def count_interactions(graph):
 
 
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python combined_af2ig_ring_metrics.py <score_file.txt> <output_file.csv>")
+    """
+    Usage:
+        python combined_af2ig_ring_metrics.py <score_file.txt> <output_file.csv> <ring_folder>
+
+    Example:
+        python combined_af2ig_ring_metrics.py input_score.txt output.csv /path/to/RING_folder
+    """
+    if len(sys.argv) < 4:
+        print("Usage: python combined_af2ig_ring_metrics.py <score_file.txt> <output_file.csv> <ring_folder>")
         sys.exit(1)
 
     score_input = sys.argv[1]
     csv_output = sys.argv[2]
+    ring_folder = sys.argv[3]
 
     # ------------------------------
     # Parse the AF2ig score file
@@ -205,8 +213,8 @@ def main():
         # If your descriptions have .pdb at the end, remove it
         base_filename = description.replace(".pdb", "")
 
-        node_file = f"/home/luod/ProteinCraft/cao_0.5M_pdb/AF2ig/IL7Ra_AF2ig_reindexB_RING/{base_filename}.pdb_ringNodes"
-        edge_file = f"/home/luod/ProteinCraft/cao_0.5M_pdb/AF2ig/IL7Ra_AF2ig_reindexB_RING/{base_filename}.pdb_ringEdges"
+        node_file = os.path.join(ring_folder, f"{base_filename}.pdb_ringNodes")
+        edge_file = os.path.join(ring_folder, f"{base_filename}.pdb_ringEdges")
 
         # Default ring metrics
         ring_counts = dict.fromkeys(ring_metric_names, 0)
@@ -229,7 +237,7 @@ def main():
 
         dict_rows.append(row_dict)
 
-        if (idx % 100 == 0): 
+        if (idx % 100 == 0):
             print(f"Processing count: {idx}")
         idx += 1
 
