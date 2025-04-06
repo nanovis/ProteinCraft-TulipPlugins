@@ -317,13 +317,13 @@ class RINGImport(tlp.Algorithm):
             "Node File",
             True,
             "Tab-delimited file describing nodes",
-            "/home/luod/ProteinCraft/run/4_PD-L1/outs_AF2ig_RING/try1_7_dldesign_0_cycle1_af2pred.pdb_ringNodes"
+            "/home/luod/ProteinCraft/run/4_PD-L1/outs_RING/try1_7_dldesign_0_cycle1_af2pred.pdb_ringNodes"
         )
         self.addFileParameter(
             "Edge File",
             True,
             "Tab-delimited file describing edges",
-            "/home/luod/ProteinCraft/run/4_PD-L1/outs_AF2ig_RING/try1_7_dldesign_0_cycle1_af2pred.pdb_ringEdges"
+            "/home/luod/ProteinCraft/run/4_PD-L1/outs_RING/try1_7_dldesign_0_cycle1_af2pred.pdb_ringEdges"
         )
 
     def check(self):
