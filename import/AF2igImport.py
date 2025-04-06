@@ -50,82 +50,35 @@ class AF2igImport(tlp.Algorithm):
         self.new_graph = tlp.newGraph()
         self.new_graph.setName("AF2ig")
 
-        # We prepare Tulip properties to hold each column.
-        # Note: The .csv example includes the header:
-        #   binder_aligned_rmsd,pae_binder,pae_interaction,pae_target,
-        #   plddt_binder,plddt_target,plddt_total,target_aligned_rmsd,
-        #   time,description
-        #
-        # Adjust or add properties as needed for your columns.
-
-        binder_aligned_rmsdP = self.new_graph.getDoubleProperty("binder_aligned_rmsd")
-        pae_binderP          = self.new_graph.getDoubleProperty("pae_binder")
-        pae_interactionP     = self.new_graph.getDoubleProperty("pae_interaction")
-        pae_targetP          = self.new_graph.getDoubleProperty("pae_target")
-        plddt_binderP        = self.new_graph.getDoubleProperty("plddt_binder")
-        plddt_targetP        = self.new_graph.getDoubleProperty("plddt_target")
-        plddt_totalP         = self.new_graph.getDoubleProperty("plddt_total")
-        target_aligned_rmsdP = self.new_graph.getDoubleProperty("target_aligned_rmsd")
-        timeP                = self.new_graph.getDoubleProperty("time")
-        descriptionP         = self.new_graph.getStringProperty("description")
+        # Dictionary to hold dynamic properties
+        numericProps = {}
+        stringProps = {}
 
         # Now parse the CSV file, skipping header if present
         with open(csv_file, 'r', newline='') as f:
             reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames
+
+            # Create properties for all columns
+            for col in fieldnames:
+                if col == "description":
+                    stringProps[col] = self.new_graph.getStringProperty(col)
+                else:
+                    numericProps[col] = self.new_graph.getDoubleProperty(col)
 
             # For each row in the CSV, create a node and set property values
             for row in reader:
                 n = self.new_graph.addNode()
 
-                # Safely convert numeric fields. If a field is empty or invalid,
-                # you may want to handle it (here we do a straightforward float cast).
-                try:
-                    binder_aligned_rmsdP[n] = float(row["binder_aligned_rmsd"])
-                except:
-                    binder_aligned_rmsdP[n] = 0.0
+                # Set string property
+                stringProps["description"][n] = row["description"]
 
-                try:
-                    pae_binderP[n] = float(row["pae_binder"])
-                except:
-                    pae_binderP[n] = 0.0
-
-                try:
-                    pae_interactionP[n] = float(row["pae_interaction"])
-                except:
-                    pae_interactionP[n] = 0.0
-
-                try:
-                    pae_targetP[n] = float(row["pae_target"])
-                except:
-                    pae_targetP[n] = 0.0
-
-                try:
-                    plddt_binderP[n] = float(row["plddt_binder"])
-                except:
-                    plddt_binderP[n] = 0.0
-
-                try:
-                    plddt_targetP[n] = float(row["plddt_target"])
-                except:
-                    plddt_targetP[n] = 0.0
-
-                try:
-                    plddt_totalP[n] = float(row["plddt_total"])
-                except:
-                    plddt_totalP[n] = 0.0
-
-                try:
-                    target_aligned_rmsdP[n] = float(row["target_aligned_rmsd"])
-                except:
-                    target_aligned_rmsdP[n] = 0.0
-
-                try:
-                    timeP[n] = float(row["time"])
-                except:
-                    timeP[n] = 0.0
-
-                # 'description' is a string
-                descriptionP[n] = row["description"]
+                # Set numeric properties
+                for col in numericProps:
+                    try:
+                        numericProps[col][n] = float(row[col])
+                    except:
+                        numericProps[col][n] = 0.0
 
         # Create a parallel coordinate view for the new graph
         pcv = tlpgui.createView("Parallel Coordinates view", self.new_graph)
