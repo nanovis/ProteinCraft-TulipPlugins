@@ -81,7 +81,7 @@ class AF2igImport(tlp.Algorithm):
                         numericProps[col][n] = 0.0
 
         # Create a parallel coordinate view for the new graph
-        pcv = tlpgui.createView("Parallel Coordinates view", self.new_graph)
+        pcv = tlpgui.createView("ProteinCraft Parallel Coordinates view", self.new_graph)
         pcv.setOverviewVisible(False)
         
         # Activate specific properties in the parallel coordinates view
@@ -90,17 +90,21 @@ class AF2igImport(tlp.Algorithm):
         selected_props["0"] = "binder_aligned_rmsd"
         selected_props["1"] = "pae_interaction" 
         selected_props["2"] = "plddt_total"
+        
         selected_props["3"] = "inter_chain_total"
         selected_props["4"] = "inter_chain_without_vdw"
-        selected_props["5"] = "inter_chain_hbond"
-        selected_props["6"] = "inter_chain_vdw"
-        selected_props["7"] = "inter_chain_other"
-        selected_props["8"] = "binder_components_bonds"
-        selected_props["9"] = "binder_components_bonds_without_vdw"
-        selected_props["10"] = "binder_target_bonds"
-        selected_props["11"] = "binder_target_bonds_largest_component"
-        selected_props["12"] = "binder_target_bonds_no_vdw"
-        selected_props["13"] = "binder_target_bonds_no_vdw_largest_component"
+
+        selected_props["5"] = "binder_target_bonds"
+        selected_props["6"] = "binder_target_bonds_largest_component"
+        selected_props["7"] = "binder_target_bonds_no_vdw"
+        selected_props["8"] = "binder_target_bonds_no_vdw_largest_component"
+        
+        selected_props["9"] = "inter_chain_hbond"
+        selected_props["10"] = "inter_chain_vdw"
+        selected_props["11"] = "inter_chain_other"
+        
+        selected_props["12"] = "binder_components_bonds"
+        selected_props["13"] = "binder_components_bonds_without_vdw"
 
         selected_props_order = {}
         selected_props_order["0"] = False
