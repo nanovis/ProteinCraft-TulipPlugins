@@ -314,13 +314,13 @@ class RINGImport(tlp.Algorithm):
         tlp.Algorithm.__init__(self, context)
         # Add two file parameters for the user to choose in the plugin UI
         self.addFileParameter(
-            "Node File",
+            "node file",
             True,
             "Tab-delimited file describing nodes",
             "/home/luod/ProteinCraft/run/4_PD-L1/outs_RING/try1_7_dldesign_0_cycle1_af2pred.pdb_ringNodes"
         )
         self.addFileParameter(
-            "Edge File",
+            "edge file",
             True,
             "Tab-delimited file describing edges",
             "/home/luod/ProteinCraft/run/4_PD-L1/outs_RING/try1_7_dldesign_0_cycle1_af2pred.pdb_ringEdges"
@@ -337,8 +337,8 @@ class RINGImport(tlp.Algorithm):
         Main function that creates and populates the graph from the input files.
         """
         try:
-            nodeFile = self.dataSet["Node File"]
-            edgeFile = self.dataSet["Edge File"]
+            nodeFile = self.dataSet["node file"]
+            edgeFile = self.dataSet["edge file"]
             self.new_graph = create_ring_graph(nodeFile, edgeFile)
             return True
         except Exception as e:
