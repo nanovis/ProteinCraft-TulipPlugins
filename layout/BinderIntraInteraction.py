@@ -327,11 +327,11 @@ def generate_subgraphs(graph, include_vdw, layout_orientation="vertical", plugin
                     if nd not in nodes_with_interactions:
                         # Get current color and set alpha to 64 (1/4 opacity)
                         current_color = prop_viewParentColor[nd]
-                        prop_viewColor[nd] = (current_color[0], current_color[1], current_color[2], 64)
+                        prop_viewColor[nd] = tlp.Color(current_color[0], current_color[1], current_color[2], 64)
                     else:
                         # Make sure to get the parent color first
                         current_color = prop_viewParentColor[nd]
-                        prop_viewColor[nd] = (current_color[0], current_color[1], current_color[2], 255)
+                        prop_viewColor[nd] = tlp.Color(current_color[0], current_color[1], current_color[2], 255)
 
                 # bipartite layout
                 layout_bipartite(compA["nodes"], compB["nodes"], sub_layout, graph, prop_position, layout_orientation)
