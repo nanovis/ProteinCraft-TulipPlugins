@@ -258,7 +258,7 @@ def create_ring_graph(nodeFile, edgeFile):
 
         n1 = nodeMap[node1Str]
         n2 = nodeMap[node2Str]
-        e = new_graph.addEdge(n1, n2)
+        e = new_graph.addEdge(n1, n2) # (source node, target node)
         
         interactionProp[e] = interaction
         atom1Prop[e]       = atom1
