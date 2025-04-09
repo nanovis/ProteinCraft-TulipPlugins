@@ -47,11 +47,11 @@ class SyncSelectionInChimeraX(tlp.Algorithm):
         Tetris_graph = None
         UMAP_graph = None
         for g in tlp.getRootGraphs():
-            if g.getName() == "AF2ig":
+            if g.getName().startswith("AF2ig"):
                 AF2ig_graph = g
-            elif g.getName() == "Tetris":
+            elif g.getName().startswith("Tetris"):
                 Tetris_graph = g
-            elif g.getName() == "UMAP":
+            elif g.getName().startswith("UMAP"):
                 UMAP_graph = g
 
         if AF2ig_graph:
@@ -87,11 +87,12 @@ class SyncSelectionInChimeraX(tlp.Algorithm):
                 }
 
         # Construct the ChimeraX command
-        command = f"proteincraft sync jsonString '{json.dumps(sync_data)}'"
-        # print(command)
-        
+        command = f"proteincraft sync_mol jsonString '{json.dumps(sync_data)}'"
+        print(f"Command sent to ChimeraX: {command}")
+
         try:
             response = requests.get(base_url, params={"command": command})
+            print(f"Response from ChimeraX: {response.text}")
         except Exception as e:
             if self.pluginProgress:
                 self.pluginProgress.setError(f"Failed to connect to ChimeraX: {e}")
