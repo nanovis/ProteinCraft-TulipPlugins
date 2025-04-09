@@ -36,6 +36,11 @@ class ApplyAllInteractionLayouts(tlp.Algorithm):
     def check(self):
         # Check if required properties exist
         g = self.graph
+
+        # Graph name should start with "RING"
+        if not g.getName().startswith("RING"):
+            return (False, "The active graph is not a RING graph (whose name starts with 'RING').")
+
         required_props = ["chain", "position", "dssp", "interaction"]
         existing_prop_names = [p for p in g.getProperties()]
 
