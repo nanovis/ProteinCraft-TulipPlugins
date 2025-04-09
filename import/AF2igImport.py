@@ -19,10 +19,17 @@ class AF2igImport(tlp.Algorithm):
         
         # Define the parameter for the CSV file path
         self.addFileParameter(
-            "CSV File",
+            "CSV file",
             True,
             "Path to the CSV file to import",
             "/home/luod/ProteinCraft/run/4_PD-L1/outs_AF2ig_score.csv"
+        )
+
+        # Add a name parameter for the graph
+        self.addStringParameter(
+            "graph name",
+            "The name to give to the imported graph",
+            "4_PD-L1"
         )
 
     def check(self):
@@ -40,7 +47,7 @@ class AF2igImport(tlp.Algorithm):
           3) For each row, create a node in a new graph.
           4) Store each CSV column in its own property.
         """
-        csv_file = self.dataSet["CSV File"]
+        csv_file = self.dataSet["CSV file"]
         if not csv_file:
             # If no file was provided, we cannot proceed.
             self.pluginProgress.setError("No CSV file path was provided.")
@@ -48,7 +55,7 @@ class AF2igImport(tlp.Algorithm):
 
         # Create a new graph
         self.new_graph = tlp.newGraph()
-        self.new_graph.setName("AF2ig")
+        self.new_graph.setName(f"AF2ig_{self.dataSet['graph name']}")
 
         # Dictionary to hold dynamic properties
         numericProps = {}
