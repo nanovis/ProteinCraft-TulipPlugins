@@ -340,6 +340,14 @@ class RINGImport(tlp.Algorithm):
             nodeFile = self.dataSet["node file"]
             edgeFile = self.dataSet["edge file"]
             self.new_graph = create_ring_graph(nodeFile, edgeFile)
+
+            success = self.new_graph.applyAlgorithm("Apply All Interaction Layouts")
+        
+            if not success:
+                if self.pluginProgress:
+                    self.pluginProgress.setError("Failed to apply all interaction layouts.")
+                return False
+        
             return True
         except Exception as e:
             if self.pluginProgress:
